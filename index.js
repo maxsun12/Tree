@@ -13,9 +13,14 @@ canvas.scale(1, -1)
  * @description 以坐标（0, 0）为起点的向量。当不传任何参数时默认为终点是（1, 0）的单位向量
  * @param {Number} x 向量终点x坐标
  * @param {Number} y 向量终点的y坐标
- * @method scale(length) 向量长度变换 length：需要拉长的长度
- * @method roate(angle) 向量与x轴的夹角变化 angle：需要偏转的角度
- * @method copy() 向量复制，返回属性值一样的新Vector实例
+ * @method scale 向量长度变换
+ * *	@param {Number} length 需要拉长的长度
+ * *	@return {Vector} 变换后的向量
+ * @method roate 向量与x轴的夹角变化
+ * *	@param {Number} angle 需要偏转的角度
+ * *	@return {Vector} 变换后的向量
+ * @method copy 向量复制，返回属性值一样的新Vector实例
+ * *	@return {Vector} 新的一个Vector实例
  */
 class Vector {
 	constructor(x = 1, y = 0) {
@@ -52,8 +57,8 @@ class Vector {
  * @param {Number} width 树枝的宽
  * @param {Array} startPoint 树枝的起点
  * @param {Vector} v 表达树枝长度及方向的向量
- * @method setChild() 设置树枝的子节点
  * @method draw() 树枝的渲染方法
+ * *	@param {Object} context canvas的context实例
  */
 class Branch {
 	childern = [] // 树枝的子节点
@@ -82,13 +87,19 @@ class Branch {
 	}
 }
 
+/**
+ * @param {Object} context canvas的context实例
+ * @param {Object} options 树的配置项
+ */
 class Tree {
+	context = null // canvas的context实例
 	startPoint = [0, -200] // 树根的起始位置
 	rootHeight = 90 // 树根的高度
 	rootWeight = 9 // 树根的宽度
 	angle = 20 // 此树的树枝基础偏转角度
 	branchs = [] // 树枝数组
-	constructor(options = {}) {
+	constructor(context, options = {}) {
+		this.context = context
 		Object.keys(options).forEach(key => {
 			if (this[key] && !(this[key] instanceof Function)) {
 				this[key] = options[key]
@@ -102,7 +113,7 @@ class Tree {
 		v.scale(this.rootHeight - 1)
 		v.roate(90)
 		let branch = new Branch(this.rootWeight, this.startPoint, v.copy(), null)
-		this.setBrach(branch)
+		this.branchs.push(branch)
 		do {
 			if (branch.childern.length < 2) {
 				while (branch.width > 1){
@@ -111,20 +122,15 @@ class Tree {
 					v.scale(-10)
 					branch.childern.length === 0 ? v.roate(-angle) : v.roate(angle)
 					branch = new Branch(branch.width - 1, startPoint, v.copy(), branch)
-					this.setBrach(branch)
+					this.branchs.push(branch)
 				}
 			}
 			branch = branch.parent
 			v.scale(10).setRoate(branch.v.angle)
 		} while (branch.parent || (branch.parent === null && branch.childern.length === 1))
-		console.log(this.branchs)
-	}
-	setBrach(branch) {
-		this.branchs.push(branch)
-	}
-	create(context) {
+
 		this.branchs.forEach(item => {
-			item.draw(context)
+			item.draw(this.context)
 		})
 	}
 }
@@ -139,9 +145,4 @@ function round (num) {
 	return Math.round(num * 1000000) / 1000000
 }
 
-const tree = new Tree({
-	// rootHeight: 100,
-	// rootWeight: 10,
-	// startPoint: [0, -300]
-})
-tree.create(canvas)
+const tree = new Tree(canvas)
