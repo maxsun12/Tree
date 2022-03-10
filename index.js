@@ -78,15 +78,19 @@ class Branch {
 		}
 		this.draw()
 	}
+	// 起点x坐标
 	get x0() {
 		return this.parent ? this.parent.x1 : 0
 	}
+	// 起点y坐标
 	get y0() {
 		return this.parent ? this.parent.y1 : -200
 	}
+	// 终点x坐标
 	get x1() {
 		return this.x0 + this.v.x
 	}
+	// 终点y坐标
 	get y1() {
 		return this.y0 + this.v.y
 	}
@@ -120,18 +124,18 @@ class Tree {
 		return this.rootWeight * 10
 	}
 	creatBranchs() {
-		let branch = new Branch(this.rootWeight, new Vector(0, this.rootHeight), null) // 创建根节点
-		do {
-			while (branch.width > 1 && branch.childern.length < 2){
+		let branch = new Branch(this.rootWeight, new Vector(0, this.rootHeight), null) // 创建根节点，并将branch指向此节点
+		while (branch.parent || branch.childern.length < 2) { // 如果不是根节点或者子节点未遍历完，继续遍历生成节点
+			while (branch.width > 1 && branch.childern.length < 2){ // 如果不是叶子节点且子节点未遍历完，继续遍历生成节点
 				const angle =  Math.round(Math.random() * this.angle) // 取最大偏转值以内的随机值进行偏转
 				const v = branch.v.copy()
 				v.scale((branch.width - 1) / branch.width)
 				branch.childern.length === 0 ? v.roate(-angle) : v.roate(angle) // 第一个节点向右偏转，第二个节点向左偏转
-				branch = new Branch(branch.width - 1, v, branch)
+				branch = new Branch(branch.width - 1, v, branch) // 生成一个节点，并将branch指向此节点
 			}
 
 			branch = branch.parent // 指向父节点
-		} while (branch.parent || branch.childern.length < 2)
+		}
 	}
 }
 
