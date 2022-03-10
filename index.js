@@ -1,7 +1,9 @@
 const canvas = document.querySelector('canvas').getContext('2d')
-canvas.translate(301, 301)
-canvas.scale(1, -1)
+canvas.translate(301, 301) // 将画布向x，y方向各偏移300，画布的(300，300)点定为平面直角坐标系的零点(0,0)
+canvas.scale(1, -1) // 将画布上下反转变换，x方向朝上为正，朝下为负
 
+
+// 坐标轴辅助线
 // canvas.beginPath()
 // canvas.moveTo(-300, 0)
 // canvas.lineTo(300, 0)
@@ -14,10 +16,10 @@ canvas.scale(1, -1)
  * @param {Number} x 向量终点x坐标
  * @param {Number} y 向量终点的y坐标
  * @method scale 向量长度变换
- * *	@param {Number} length 需要拉长的长度
+ * *	@param {Number} value 需要拉长的长度
  * *	@return {Vector} 变换后的向量
  * @method roate 向量与x轴的夹角变化
- * *	@param {Number} angle 需要偏转的角度
+ * *	@param {Number} value 需要偏转的角度
  * *	@return {Vector} 变换后的向量
  * @method copy 向量复制，返回属性值一样的新Vector实例
  * *	@return {Vector} 新的一个Vector实例
@@ -26,112 +28,110 @@ class Vector {
 	constructor(x = 1, y = 0) {
 		this.x = x
 		this.y = y
-		this.length = Math.hypot(this.x, this.y) // 向量长度
-		this.angle = (Math.atan2(this.y, this.x) / Math.PI) * 180 // 向量与x轴的夹角
 	}
-	scale(length) {
-		this.length += length
-		this.x = round(Math.cos(transform(this.angle)) * this.length)
-		this.y = round(Math.sin(transform(this.angle)) * this.length) 
+	// 向量长度
+	get length () {
+		return round(Math.hypot(this.x, this.y))
+	}
+	// 向量与x轴的夹角
+	get angle() {
+		return Math.round((Math.atan2(this.y, this.x) / Math.PI) * 180)
+	}
+	scale(value) {
+		this.x *= value
+		this.y *= value
 		return this
 	}
-	roate(angle) {
-		this.angle += angle
-		this.x = round(Math.cos(transform(this.angle)) * this.length)
-		this.y = round(Math.sin(transform(this.angle)) * this.length)
-		return this
-	}
-	setRoate(angle) {
-		this.angle = angle
-		this.x = round(Math.cos(transform(this.angle)) * this.length)
-		this.y = round(Math.sin(transform(this.angle)) * this.length)
+	roate(value) {
+		const dir = transform(value)
+		const cos = Math.cos(dir)
+		const sin = Math.sin(dir)
+		const oldX = this.x
+		const oldY = this.y
+		this.x = round(oldX * cos + oldY * -sin)
+    	this.y = round(oldX * sin + oldY * cos)
 		return this
 	}
 	copy() {
-		const v = new Vector()
-		return Object.assign(v, this)
+		return new Vector(this.x, this.y)
 	}
 }
 
 /**
  * @param {Number} width 树枝的宽
- * @param {Array} startPoint 树枝的起点
  * @param {Vector} v 表达树枝长度及方向的向量
+ * @param {Branch} parent 此树枝节点的父节点
  * @method draw() 树枝的渲染方法
- * *	@param {Object} context canvas的context实例
  */
 class Branch {
+	width = 0 // 树枝的宽度
 	childern = [] // 树枝的子节点
 	parent = null // 树枝的父节点
-	constructor(width, startPoint, v, parent) {
+
+	constructor(width, v, parent) {
 		this.width = width
-		this.x = round(startPoint[0])
-		this.y = round(startPoint[1])
 		this.v = v
 
 		if (parent) {
 			this.parent = parent
 			this.parent.setChild(this)
 		}
+		this.draw()
+	}
+	get x0() {
+		return this.parent ? this.parent.x1 : 0
+	}
+	get y0() {
+		return this.parent ? this.parent.y1 : -200
+	}
+	get x1() {
+		return this.x0 + this.v.x
+	}
+	get y1() {
+		return this.y0 + this.v.y
 	}
 	setChild(child) {
 		this.childern.push(child)
 	}
-	draw(context) {
-		context.beginPath()
-		context.lineWidth = this.width
-		context.strokeStyle = "black"
-		context.moveTo(this.x, this.y)
-		context.lineTo(this.x + this.v.x, this.y + this.v.y)
-		context.stroke()
+	draw() {
+		canvas.beginPath()
+		canvas.lineWidth = this.width
+		canvas.strokeStyle = "black"
+		canvas.moveTo(this.x0, this.y0)
+		canvas.lineTo(this.x1, this.y1)
+		canvas.stroke()
 	}
 }
 
 /**
- * @param {Object} context canvas的context实例
- * @param {Object} options 树的配置项
+ * @param {Object} options 树的配置项 { rootWeight: 树根的宽, angle: 此树的树枝最大偏转角度 }
  */
 class Tree {
-	context = null // canvas的context实例
-	startPoint = [0, -200] // 树根的起始位置
-	rootHeight = 90 // 树根的高度
 	rootWeight = 9 // 树根的宽度
-	angle = 20 // 此树的树枝基础偏转角度
-	branchs = [] // 树枝数组
-	constructor(context, options = {}) {
-		this.context = context
-		Object.keys(options).forEach(key => {
-			if (this[key] && !(this[key] instanceof Function)) {
-				this[key] = options[key]
-			}
-		})
-		this.creatBranch()
-	}
-	creatBranch() {
-		const v = new Vector()
-		let startPoint = []
-		v.scale(this.rootHeight - 1)
-		v.roate(90)
-		let branch = new Branch(this.rootWeight, this.startPoint, v.copy(), null)
-		this.branchs.push(branch)
-		do {
-			if (branch.childern.length < 2) {
-				while (branch.width > 1){
-					const angle = this.angle + Math.round(Math.random()*20) * (Math.round(Math.random()) === 0 ? -1 : 1)
-					startPoint = [branch.x + branch.v.x, branch.y + branch.v.y]
-					v.scale(-10)
-					branch.childern.length === 0 ? v.roate(-angle) : v.roate(angle)
-					branch = new Branch(branch.width - 1, startPoint, v.copy(), branch)
-					this.branchs.push(branch)
-				}
-			}
-			branch = branch.parent
-			v.scale(10).setRoate(branch.v.angle)
-		} while (branch.parent || (branch.parent === null && branch.childern.length === 1))
+	angle = 30 // 此树的树枝最大偏转角度
+	constructor(options = {}) {
+		const { rootWeight, angle } = options
+		this.angle = angle || this.angle
+		this.rootWeight = rootWeight || this.rootWeight
 
-		this.branchs.forEach(item => {
-			item.draw(this.context)
-		})
+		this.creatBranchs()
+	}
+	get rootHeight() {
+		return this.rootWeight * 10
+	}
+	creatBranchs() {
+		let branch = new Branch(this.rootWeight, new Vector(0, this.rootHeight), null) // 创建根节点
+		do {
+			while (branch.width > 1 && branch.childern.length < 2){
+				const angle =  Math.round(Math.random() * this.angle) // 取最大偏转值以内的随机值进行偏转
+				const v = branch.v.copy()
+				v.scale((branch.width - 1) / branch.width)
+				branch.childern.length === 0 ? v.roate(-angle) : v.roate(angle) // 第一个节点向右偏转，第二个节点向左偏转
+				branch = new Branch(branch.width - 1, v, branch)
+			}
+
+			branch = branch.parent // 指向父节点
+		} while (branch.parent || branch.childern.length < 2)
 	}
 }
 
@@ -145,4 +145,4 @@ function round (num) {
 	return Math.round(num * 1000000) / 1000000
 }
 
-const tree = new Tree(canvas)
+const tree = new Tree()
